@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script>
+            ///////////////
+            // 전역변수부
+            ///////////////
+            let inCanvas, inCtx, inPaper; // 입력 영상 관련
+            let outCanvas, outCtx, outPaper; // 출력 영상 관련
+            let inImage, inH, inW; // 2차원배열, 높이, 폭
+            let outImage, outH, outW; // 2차원배열, 높이, 폭
+            let inFile;
+
+            ///////////////
+            // 공통 함수부: Open(),Display()...
+            ///////////////
+            function init(){
+                inCanvas = document.getElementById("inCanvas"); // 도화지
+                inCtx = inCanvas.getContext("2d"); // 물감, 붓이 들은 통
+                inCtx.beginPath();
+                inCtx.fillStyle="white"
+                inCtx.rect(30,30,490,490);
+                inCtx.fill();
+                inCtx.font="20px Gothic"
+                inCtx.fillStyle="black"
+                inCtx.fillText("inImage 사진",215,275);
+                outCanvas = document.getElementById("outCanvas"); // 도화지
+                outCtx = outCanvas.getContext("2d"); // 물감, 붓이 들은 통
+                outCtx.beginPath();
+                outCtx.fillStyle="white"
+                outCtx.rect(30,30,490,490);
+                outCtx.fill();
+                outCtx.font="20px Gothic"
+                outCtx.fillStyle="black"
+                outCtx.fillText("outImage 사진",215,275);
+                // alert("init()끝");
+            }
+            function openImage() {
+                    inFile = document.getElementById("inFile").files[0]; // 선택한 RAW 파일(LENNA512.RAW)
+                    // (중요!) 선택한 이미지의 크기를 확인
+                    inH = inW = Math.sqrt(inFile.size);//128, 256,512,1024...
+                    // 이미지 크기의 메모리(2차원배열)를 확보
+                    inImage = new Array(inH);
+                    for (let i = 0; i < inH; i++)
+                        inImage[i] = new Array(inW);
+                    // 파일  --> 메모리
+                    let reader = new FileReader();
+                    reader.readAsBinaryString(inFile);
+                    reader.onload = function () {
+                        let blob = reader.result; // 파일을 한 덩어리(blob)으로 가져옴.
+                        // 덩어리(blob)에서 한점한점 뽑아서, 배열에 넣기... 몇번 반복? 512x512
+                        for (let i = 0; i < inH; i++) {
+                            for (let k = 0; k < inW; k++) {
+                                let sPixel = (i * inH + k); // 시작 위치
+                                let ePixel = (i * inH + k) + 1; // 끝 위치
+                                inImage[i][k] = blob.slice(sPixel, ePixel).charCodeAt(0); // 0~1까지 뽑아라. 0만 뽑힘.
+                            }
+                        }
+                        // 도화기 크기를 이미지 크기로 조절
+                        inCanvas.height = inH;
+                        inCanvas.width = inH;
+                        //** 입력 메모리(inImage)를 페이퍼에 콕콕 찍어서 출력한 후,  페이퍼를 캔버스에 떡 붙이기.
+                        inPaper = inCtx.createImageData(inH, inW); // 이미지 크기의 빈 종이를 준비
+                        for (let i = 0; i < inH; i++) {
+                            for (let k = 0; k < inW; k++) {
+                                let px = inImage[i][k];  //'뙓' -->  223
+                                inPaper.data[(i * inH + k) * 4 + 0] = px; // Red
+                                inPaper.data[(i * inH + k) * 4 + 1] = px; // Green
+                                inPaper.data[(i * inH + k) * 4 + 2] = px; // Blue
+                                inPaper.data[(i * inH + k) * 4 + 3] = 255; // Alpha (투명도)
+                            }
+                        }
+                        inCtx.putImageData(inPaper, 0, 0);
+                    }
+                }
+            function displayImage() {
+                     outCanvas.height = outH;
+                     outCanvas.width = outH;
+                    outPaper = outCtx.createImageData(outH, outW); // 이미지 크기의 빈 종이를 준비
+                     for (let i = 0; i < outH; i++) {
+                         for (let k = 0; k < outW; k++) {
+                              let px = outImage[i][k];  //'뙓' -->  223
+                              outPaper.data[(i * outH + k) * 4 + 0] = px; // Red
+                             outPaper.data[(i * outH + k) * 4 + 1] = px; // Green
+                             outPaper.data[(i * outH + k) * 4 + 2] = px; // Blue
+                                outPaper.data[(i * outH + k) * 4 + 3] = 255; // Alpha (투명도)
+                            }
+                        }
+                        outCtx.putImageData(outPaper, 0, 0);
+                    }
+            function selectAlgorithm(selNum){
+                switch(parseInt(selNum.value)){
+                    case 101://동일영상
+                        equalImage();break;
+                    case 102://반전영상
+                        reverseImage();break;
+                    case 103://영상더하기
+                        lightImage();break;
+                    case 104://영상빼기
+                        darkImage();break;
+                    case 105://영상곱하기
+                        gopImage();break;
+                    case 106://영상나누기
+                        divImage();break;
+                    case 107://흑백127기준
+                        image127();break;
+                    case 108://흑백평균기준
+                        avgImage();break;
+                    case 109://흑백중앙값기준
+                        bwMiddleImage();break;
+                    case 110://파라볼라 캡
+                        paraCapImage();break;
+                    case 111://파라볼라 컵
+                        paraCupImage();break;
+                    case 112://감마
+                        gammaImage();break;
+
+
+                    case 201:// 상하미러링
+                        udImage();break;
+                    case 202:// 좌우미러링
+                        lrImage();break;
+                    case 203:// 영상이동
+                        swapImage();break;
+                    case 204:// 영상회전
+                        rotateImage();break;
+                    case 205:// 영상회전 90도
+                        image90();break;
+                    case 206:// 영상축소
+                        zoomOutImage();break;
+                    case 207:// 영상확대
+                        zoomInImage();break;
+                    case 208:// 영상확대(백워딩)
+                        zoomInImage2();break;
+
+                    
+                    case 301:// 엠보싱
+                        embossImage();break;
+                    case 302:// 블러링
+                        blurrImage();break;
+                    case 303:// 샤프닝
+                        sharpenImage();break;
+                    case 304:// 가우시안
+                        gaussianImage();break;
+                    case 305:// 고주파 샤프닝
+                        hpfSharpImage();break;
+                    case 306:// 에지 검출 이동과 차분
+                        sadImage();break;
+                    case 307:// 유사연산자
+                        opImage();break;
+                    case 308: //로버츠 알고리즘
+                        robertsImage();break;
+                    case 309: //소벨 알고리즘
+                        sobelImage();break;
+                    case 310: //프리윗 알고리즘
+                        prewittImage();break;
+                    case 311: //라플라시안 알고리즘
+                        laplacianImage();break;
+                    case 312: //로그 알고리즘
+                        logImage();break;
+                    case 313: //dog 알고리즘
+                        dogImage();break;
+
+
+                    case 401:// 스트레칭
+                        stretchImage();break;
+                    case 402:// 엔드-인
+                        endInImage();break;
+                    case 403:// 평활화
+                        equalizeImage();break;
+                }
+            }
+            ///////////////
+            // 영상 처리 함수부*****
+            ///////////////
+            function equalImage(){//동일 영상 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inW;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        outImage[i][k] = inImage[i][k];
+                    }
+                }
+                //***********************
+                displayImage();
+            }
+            function reverseImage(){//영상 반전 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inW;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        outImage[i][k] = 255 - inImage[i][k];
+                    }
+                }
+                //***********************
+                displayImage();
+            }
+             //입력 받은 숫자 만큼 밝기를 올리는 함수
+            function lightImage(){
+                //출력되는 사진의 크기는 변하지 않는다
+                outH=inH;
+                outW=inW;
+                //출력할 배열 생성
+                outImage=new Array(outH);
+                for(let i=0;i<outH;i++){
+                    outImage[i]=new Array(outW);
+                }
+                //얼마나 밝게 할 것인지 값을 입력받는다.(value)
+                let value = parseInt(prompt("숫자를 입력하세요","100"))
+                //inImage의 밝기를 올려 outImage에 대입한다.
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //만약 입력받은 값을 더했을때 사진이 나타낼수있는 최대 밝기인 255를 넘는다면
+                        //255로 정한다.
+                        if(inImage[i][k]+value>255)
+                            outImage[i][k]=255;
+                        //255를 넘지 않는다면 밝기만 더해주면 된다.   
+                        else
+                            outImage[i][k]=inImage[i][k]+value;
+                    }
+                }
+                //밝기를 바꾸고 출력이미지를 다시 원본이미지(inImage)에 넣어준다.
+                //다음번에 밝기를 바꾸면 누적해서 계속 밝아지게 된다.
+                for(i=0;i<inH;i++){
+                    for(k=0;k<inW;k++){
+                        inImage[i][k]=outImage[i][k];
+                }
+                //출력함수
+                displayImage();
+            }
+        }
+        //입력받은 값만큼 어둡게 만드는 함수
+        function darkImage(){
+                //출력되는 사진의 크기가 변하지 않는다
+                outH=inH;
+                outW=inW;
+                //출력할 배열 생성
+                outImage=new Array(outH);
+                for(let i=0;i<inH;i++)
+                    outImage[i]=new Array(outW);
+                //얼마나 어둡게 할 것인지 입력 받는다.(value)
+                let value = parseInt(prompt("숫자를 입력하세요","100"));
+                //inImage(원본이미지)를 어둡게 하여 outImage(출력할 이미지)에 대입한다.
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //값을 빼주었을때 원본이미지의 값이 이미지의 최소 밝기인 0보다 작아진다면
+                        //출력이미지의 값을 0으로 설정한다.
+                        if(inImage[i][k]-value<0)
+                            outImage[i][k]=0;
+                        //0보다 작아지지 않는 값들은 그대로 대입한다.
+                        else
+                            outImage[i][k]=inImage[i][k]-value;
+                    }
+                }
+                //밝기를 바꾸고 원본이미지에 대입한다.
+                //다음번 어둡게할때 누적해서 어둡게 하기 위함
+                for(i=0;i<inH;i++){
+                    for(k=0;k<inW;k++){
+                        inImage[i][k]=outImage[i][k];
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //흑백이미지 127을 기준으로 변경
+            function image127(){
+                //이미지의 크기는 변하지 않음
+                outH=inH;
+                outW=inW;
+                //출력할 배열 생성
+                outImage=new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //127을 기준으로 한 흑백이미지로 변경, 흑: 0 ,백: 255
+                for(let i=0;i<outH;i++){
+                    for(let k=0;k<outW;k++){
+                        //원본이미지가 127보다 크다면 최대 밝기인 255로 설정(백)
+                        if(inImage[i][k]>127)
+                            outImage[i][k]=255;
+                        //원본이미지가 127보다 작다면 최소 밝기인 0으로 설정(흑)
+                        else
+                            outImage[i][k]=0;
+                    }
+                }
+                //흑백을 바꿔서 원본이미지를 바꾼다.
+                //다른 함수를 클릭했을때 흑백으로 바뀐 사진이 변한다.
+                //있어도 되고 없어도 되고
+                for(i=0;i<inH;i++){
+                    for(k=0;k<inW;k++){
+                        inImage[i][k]=outImage[i][k];
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //픽셀의 평균값을 기준으로 흑백이미지로 변경하는 함수
+            function avgImage(){
+                //출력이미지 크기는 같다.
+                outH=inH;
+                outW=inW;
+                //출력할 배열 생성
+                outImage=new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //원본이미지의 픽셀의 평균 값을 구한다.
+                //hap은 원본이미지의 픽셀 값을 모두 더하는 변수
+                //cnt는 원본이미지의 픽셀의 수를 구하는 변수
+                //avg는 hap/cnt로 픽셀의 평균값을 저장할 변수
+                let hap=0,avg,cnt=0;
+                //픽셀들을 더하고 픽셀의 수를 센다
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        hap+=inImage[i][k];
+                        cnt++;//inH**2의 값과 같겠다 정사각형이니까
+                    }
+                }
+                //원본이미지의 픽셀의 평균 값
+                avg=parseInt(hap/cnt);
+                //평균값을 기준으로 흑백이미지로 변환
+                for(i=0;i<inH;i++){
+                    for(k=0;k<inW;k++){
+                        //평균 값보다 크다면 최대밝기인 255로 설정(백)
+                        if(inImage[i][k]>avg)
+                            outImage[i][k]=255;
+                        //평균값보다 작다면 최소밝기인 0으로 설정(흑)
+                        else
+                            outImage[i][k]=0;
+                    }
+                }
+                //원본이미지를 바꿔주는 이중for문은 넣지 않았다
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지의 상하를 반전시키는 함수
+            function udImage(){
+                //원본이미지의 크기는 변하지 않는다.
+                outW=inW;
+                outH=inH;
+                //출력할 배열 생성(출력이미지)
+                outImage= new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]= new Array(outW);
+                //출력할 배열이 이미 정해져 있고 원본이미지를 바꿀 필요는 없기 때문에
+                //출력이미지에 원본이미지의 행번호를 거꾸로 해서 대입해줬다.
+                //원본이미지는 변경되지 않는다. 한줄이라 조금 깔끔할지도
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //inW는 배열의 크기 자체이므로 -1해야함
+                        outImage[i][k]=inImage[inH-i-1][k];
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지의 좌우를 반전시키는 함수
+            function lrImage(){
+                //원본이미지의 크기는 변하지 않는다.
+                outW=inW;
+                outH=inH;
+                //출력할 배열 생성(출력이미지)
+                outImage= new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]= new Array(outW);
+                //상하 이미지와 마찬가지로 하되 좌우반전이므로
+                //열번호를 거꾸로 해서 대입해줬다.
+                //원본이미지는 변경되지 않는다.
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //inW는 배열의 크기 자체이므로 -1해야함
+                        outImage[i][k]=inImage[i][inW-k-1];
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지를 입력받은 값만큼 축소하는 함수
+            function zoomOutImage(){
+                //이미지를 몇배 축소 할 것 인지 입력받는다
+                let scale = parseInt(prompt("축소 크기 : ","2"));
+                //출력이미지의 크기가 1/scale만큼 줄어든다.
+                outH=parseInt(inH/scale);
+                outW=parseInt(inW/scale);
+                //출력할 배열 생성
+                outImage=new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //원본이미지의 크기를 줄여야 하므로 원본이미지전체 크기 만큼for문을 돌린다.
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //출력이미지의 크기는 원본이미지보다 1/scale 곱한것 만큼 작으므로
+                        //인덱스에 1/scale해서 곱해준다.
+                        outImage[parseInt(i/scale)][parseInt(k/scale)]=inImage[i][k];
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지를 입력받은 값 만큼 확대하는 함수
+            function zoomInImage(){
+                //이미지를 몇배 확대할 것인지 입력 받는다.
+                let scale= parseInt(prompt("확대 크기: ","2"));
+                //출력이미지의 크기가 scale만큼 커진다.
+                outH=inH*scale;
+                outW=inW*scale;
+                //출력할 배열 생성
+                outImage= new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //원본이미지의 크기를 확대하므로 원본이미지 크기만큼만 for문을 돌린다.
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //출력이미지가 원본보다 scale배한만큼 크기 때문에
+                        //인덱스에 scale을 곱해준다.
+                        //출력이미지가 훨씬 커서 빈 인덱스가 생겨 출력 이미지가 어두워진다.
+                        //해결방법 : 백워딩
+                        outImage[i*scale][k*scale]=inImage[i][k];
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지를 입력받은 값만큼 확대하는 함수 , 백워딩
+            function zoomInImage2(){
+                //이미지를 몇배 확대할 것인지 입력받는다.
+                let scale=parseInt(prompt("확대 크기: ","2"));
+                //출력이미지의 크기가 scale만큼 커진다.
+                outH=inH*scale;
+                outW=inW*scale;
+                //출력할 배열 생성
+                outImage= new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //출력이미지의 인덱스를 활용해서 원본이미지의 픽셀을 쪼개 넣을 것이므로
+                //출력이미지의 크기만큼 for문을 돌린다.
+                for(let i=0;i<outH;i++){
+                    for(let k=0;k<outW;k++){
+                        //출력이미지에 원본이미지를 넣는다.
+                        //출력이미지의 인덱스를 1/scale해서 원본이미지의 하나의 픽셀을 
+                        //출력이미지의 한 영역에 중복해서 넣는다 4x4,2x2로 그림그리면 알게됨
+                        outImage[i][k]= inImage[parseInt(i/scale)][parseInt(k/scale)];
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지를 입력받은 값만큼 이동
+            function swapImage(){
+                //이미지를 이동시킬 x값과 y값을 입력받는다.
+                let x=parseInt(prompt("x축으로 이동","30"));
+                let y=parseInt(prompt("y축으로 이동","30"));
+                //원본이미지의 크기는 그대로 간다
+                //이동시키고 캔버스밖의 부분은 잘린상태로 나온다.
+                outW=inW;
+                outH=inW;
+                //출력할 배열생성
+                outImage=new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //이미지 이동시키는 for문
+                for(i=0;i<outH;i++){
+                    for(k=0;k<outW;k++){
+                        //이동은 인덱스에 x와 y의 좌표를 더해서 출력배열에 대입하는 형태로한다.
+                        //원본이미지 크기 그대로 가므로 만약 인덱스에 x,y좌표를 더한 값이
+                        //원본이미지보다 크게 되면 출력배열에 대입하는 것을 for문을멈춘다.(나머지부분을 잘라냄)
+                        if((i+y)<outH&&(k+x)<outW)
+                            outImage[i+y][k+x]=inImage[i][k];
+                        else break;
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지를 회전시키는 함수
+            function rotateImage(){
+                //회전할 각의 크기를 입력받아 degree에 저장한다.
+                let degree = parseFloat(prompt("회전각도를 입력하시오","45"));
+                //각도를 라디안으로 변경
+                let radian = degree*Math.PI/180.0;
+                //이미지를 돌리는건 행렬 공식에 의한다
+                //45도 돌리게 되면 루트2를 곱해주고 그래야하는데 그걸 각도별로 쓸순 없으니까
+                //출력이미지크기가 이렇게 된다
+                //절댓값을 씌우면 90도가 넘게 돌아간다.
+                outH=parseInt(Math.abs(Math.cos(radian)*inH) + Math.abs(Math.cos(Math.PI/2-radian)*inW));
+                outW= parseInt(Math.abs(Math.cos(radian)*inW) + Math.abs(Math.cos(Math.PI/2-radian)*inH));
+                //출력할 배열 생성
+                outImage=new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //출력 배열을 0으로 초기화
+                for(let i=0;i<outH;i++){
+                    for(let k=0;k<outW;k++){
+                        outImage[i][k]=255;
+                    }
+                }
+                //xd,yd는 이미지를 이동시킬 목적지 좌표(인덱스)이다.
+                let xd, yd;
+                //cx,cy는 이미지의 중심 좌표값이다.
+                //이미지가 한 부분을 고정으로 돌아가야 하므로 설정하는데
+                //논리상 출력이미지의 크기의 절반값을 하면 출력이미지의 중심좌표 값이
+                //나와서 그걸 기준으로 돌아가야하는데
+                //자꾸 이미지가 캔버스를 탈출한다....이미지가 굴러가서 사라져버린다.
+                //해결-->오타였다.....cy/outW*inW를 cy/outW+inW로 썼다.
+                let cx=parseInt(outH/2);
+                let cy=parseInt(outW/2);
+                //이젠 목적지 인덱스를 활용해서 출력 이미지에 원본이미지를 대입해줄차례
+                for(let i=0;i<outH;i++){
+                    for(let k=0;k<outW;k++){
+                        //이것 역시 행렬이다 
+                        //cx/outH*inH와 cy/outW*inW는 왜 나온지 모르겠다.
+                        //이미지가 중심점을 따라 회전하기 때문에 이미지가 캔버스밖으로 이동한다.
+                        //따라서 회전으로 인해 옮겨간 만큼 다시 더해주어야한다.
+                        xd=parseInt(Math.cos(radian)*(i-cx)-Math.sin(radian)*(k-cy)+cx/outH*inH);
+                        yd=parseInt(Math.sin(radian)*(i-cx) + Math.cos(radian)*(k-cy)+cy/outW*inW);
+                        //목적지 인덱스가 원본이미지의 인덱스 내에 있는 수라면
+                        //출력 배열에 대입한다.
+                        if((0<=xd && xd <inH) && (0<=yd && yd <inW))
+                            outImage[i][k]=inImage[xd][yd];
+                        //목적지 인덱스가 원본이미지 인덱스 밖이라면 0대입
+                        else
+                            outImage[i][k]=255;
+                    }
+                }
+                //출력함수
+                displayImage()
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+
+            //이미지를 파라볼라 컵하는 함수
+            //밝은 곳을 입체화한다.
+            function paraCupImage(){
+                //출력이미지의 크기는 원본이미지와 같다
+                outH=inH;
+                outW=inW;
+                //출력할 배열 생성
+                outImage=new Array(outH);
+                for(i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //원본이미지를 파라볼라 컵 변환 한 것을 출력이미지에 저장
+                for(let i=0;i<outH;i++){
+                    for(let k=0;k<outW;k++){
+                        //파라볼라 컵 변환 공식(다른 프로그래밍 언어)
+                        //new_pixel = 255.0 * (( double(x)/128.0 - 1.0)^2); 
+                        outImage[i][k]=Math.pow((inImage[i][k]/128-1),2)*255;
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지를 파라볼라 캡하는 함수
+            //어두운 곳을 입체화한다.
+            function paraCapImage(){
+                //출력이미지의 크기는 원본이미지와 같다.
+                outH=inH;
+                outW=inW;
+                //출력할 배열생성
+                outImage=new Array(outH);
+                for(i=0;i<outH;i++)
+                    outImage[i]=new Array(outW);
+                //원본이미지를 파라볼라 캡 한것을 출력이미지에 저장
+                for(let i=0;i<outH;i++){
+                    for(let k=0;k<outW;k++){
+                        //파라볼라 캡 변환 공식(다른 프로그래밍 언어)
+                        //new_pixel = 255.0 - 255.0 * (( double(x)/128.0 - 1.0)^2); 
+                        outImage[i][k]=255- (255)*Math.pow((inImage[i][k]/128-1),2);
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지 감마 변환 함수
+            //감마변환 : 이미지를 밝아지거나 어두워지게 한다.
+            //모니터은 출력은 입력신호가 커질수록 명암이 높고 밝기가 어두워지는 경향이 있어
+            //인간의 눈에 왜곡없이 보이게 하기 위해서 감마보정후 모니터에 출력할때 사용한다.
+            function gammaImage(){
+                //원본이미지 크기 그대로
+                outH=inH;
+                outW=inW;
+                //출력배열을 생성
+                outImage=new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]= new Array(outW);
+
+                let value = parseInt(prompt("감마값입력","1.5"));
+                //출력결과를 보면 감마 값이 0보다 크면 어두워지고 0보다 작으면 밝아진다.
+                if(value<0)
+                    value=1/(1-value);
+                else
+                    value+=1;
+                //감마 변환
+                for(let i=0;i<outH;i++){
+                    for(let k=0;k<outW;k++){
+                        //감마변환공식(다른 프로그래밍 언어)
+                        //double gamma = 1.0 / m_dGamma;
+                        //arrPow[n] = (BYTE)(pow(n/255.0, gamma)*255 + 0.5);
+                        outImage[i][k]=parseInt((inImage[i][k]/255)**(value)*255+0.5);
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지에 값을 곱하는 함수
+            //더하기 함수와 연산자 쓰는 것만 다르다
+            function gopImage(){
+                outH=inH;
+                outW=inW;
+
+                outImage=new Array(outH);
+                for(let i=0;i<outW;i++)
+                    outImage[i]=new Array(outW);
+
+                value=parseInt((prompt("곱할 값을 입력하시오","2")));
+                for(i=0;i<outH;i++){
+                    for(k=0;k<outH;k++){
+                        //곱한 값이 255보다크면 255로 설정 
+                        if(inImage[i][k]*value>255)
+                            outImage[i][k]=255;
+                        //곱한 값이 255를 넘지 않으면 value값을 곱한 값을 출력 배열에 대입한다.
+                        else
+                            outImage[i][k]=inImage[i][k]*value;
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지값을 나누는 함수
+            //빼기 함수의 연산자 쓰는 것만 다르다.
+            function divImage(){
+                outH=inH;
+                outW=inW;
+
+                outImage=new Array(outH);
+                for(let i=0;i<outW;i++)
+                    outImage[i]=new Array(outW);
+
+                value=parseInt((prompt("나눌 값을 입력하시오","2")));
+                for(i=0;i<outH;i++){
+                    for(k=0;k<outH;k++){
+                        //나눈 값이 0보다 작다면 0으로 설정
+                        if(inImage[i][k]/value<0)
+                            outImage[i][k]=0;
+                        //나눈 값이 0과 같거나 크면 나눈 값을 출력배열에 대입
+                        else
+                            outImage[i][k]=inImage[i][k]/value;
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //흑백처리를 중앙값을 기준으로 한 함수
+            //이 함수는 for문을 많이 돌려서 속도가 늦는다.
+            //해결방법: 정렬 알고리즘 변경
+            function bwMiddleImage(){
+                //원본이미지와 크기는 같다.
+                outH=inH;
+                outW=inW;
+                //출력할 배열 생성
+                outImage=new Array(outH);
+                for(let i=0;i<outW;i++)
+                    outImage[i]=new Array(outW);
+                //원본이미지의 픽셀 값들을 저장할 1차원 배열(tmpImage) 생성
+                //배열의 크기는 모든 픽셀 값들을 저장해야 하므로 
+                //이미지 전체크기(512x512 혹은 256x256)로 한다
+                let tmpImage= new Array(outH**2);
+                //배열의 크기를 반복문에 직접입력하는 방법도 있지만
+                //컴퓨터가 알아서 세어주면 그 변수를 내가 쓰려고 
+                //cnt라는 배열크기를 저장할 변수를 만들었다.
+                let cnt =0;
+                //일차원배열에 이미지 픽셀값 모두 저장
+                for(i=0;i<outH;i++){
+                    for(k=0;k<outW;k++){
+                        tmpImage[cnt++]=inImage[i][k];
+                    }
+                }
+                //일차원배열의 픽셀 값들을 크기 순서대로 정렬
+                let temp;
+                for(i=0;i<cnt-1;i++){
+                    for(k=i+1;k<cnt;k++){
+                        if(tmpImage[i]>tmpImage[k]){
+                            temp=tmpImage[i];
+                            tmpImage[i]=tmpImage[k];
+                            tmpImage[k]=temp;
+                        }
+                    }
+                }
+                //정렬된 일차원 배열의 정중앙에는 이미지의 픽셀 중앙값이 들어있다.
+                //flag에 일차원배열의 중앙 값을 저장한다.(흑백 기준)
+                let flag = tmpImage[outH**2/2];
+                for(i=0;i<outH;i++){
+                    for(k=0;k<outW;k++){
+                        //일차원배열의 중앙값보다 크다면 255로 설정(백)
+                        if(inImage[i][k]>flag)
+                            outImage[i][k]=255;
+                        //중앙값보다 작다면 0으로 설정(흑)
+                        else
+                            outImage[i][k]=0;
+                    }
+                }
+                //출력함수
+                displayImage();
+
+            }
+            
+            ///////////////////////////////////////////////////
+            ///////////////////////////////////////////////////
+
+
+            //이미지를 90도씩 회전하는 함수
+            function image90(){
+                //90도씩 회전하므로 출력크기는 변하지 않는다
+                outH=inH;
+                outW=inW;
+                //출력할 배열생성
+                outImage=new Array(outH);
+                for(let i=0;i<outW;i++)
+                    outImage[i]=new Array(outW);
+                //색종이를 삼각형으로 1/4크기로 접어서 나온 4조각에 2차원 배열이 위에
+                //얹어진 모양을 생각하면서 한 조각에서 한줄씩 옮긴다고 생각하고 작성한 for문이다.
+                let temp;
+                for(let i=0;i<inH/2;i++){
+                    for(let k=i;k<inW-i;k++){
+                        //4개의 꼭짓점에서 하나씩 옮기는 부분으로
+                        //3x3배열을 그려놓고 그대로인 인덱스는 i로 설정하고, 변하는 부분은 k로 설정하면서
+                        //역순과 정방향을 생각하면 배열의 위치를 바꿀수 있다.
+                        temp=inImage[i][k];
+                        inImage[i][k]=inImage[inH-k-1][i];
+                        inImage[inH-k-1][i]=inImage[inW-i-1][inH-k-1];
+                        inImage[inW-i-1][inH-k-1]=inImage[k][inW-i-1];
+                        inImage[k][inW-i-1]=temp;
+                    }
+                }
+                //바뀐 원본이미지 출력을 위해 출력배열에 대입한다.
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        outImage[i][k]=inImage[i][k];
+                    }
+                }
+                //출력함수
+                displayImage();
+            }
+
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+            //엠보싱 알고리즘
+            function embossImage(){
+                outH=inW;
+                outW=inW;
+
+                outImage = new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i]= new Array(outW);
+
+                let mask = [
+                            [-1.0,0.0,0.0],
+                            [0.0,0.0,0.0],
+                            [0.0,0.0,1.0]
+                ];
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                let tmpOutImage = new Array(outH);
+                for(let i=0;i<outH;i++)
+                    tmpOutImage[i] = new Array(outW);
+                
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]= inImage[i][k];
+                
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        let S=0.0;
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] <0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                displayImage();
+            }
+            
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+            function blurrImage(){//블러링 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inW;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [1.0/9, 1.0/9, 1.0/9],
+                            [1.0/9, 1.0/9, 1.0/9],
+                            [1.0/9, 1.0/9, 1.0/9]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                // for(let i=0;i<outH;i++)
+                //     for(let k=0;k<outW;k++)
+                //         tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+            
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+        function sharpenImage(){//샤프닝 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                    [-1,-1,-1],
+                    [-1,9,-1],
+                    [-1,-1,-1]
+        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                // for(let i=0;i<outH;i++)
+                //     for(let k=0;k<outW;k++)
+                //         tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+            
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+            function gaussianImage(){//가우시안 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [1.0/16, 1.0/8, 1.0/16],
+                            [1.0/8, 1.0/4, 1.0/8],
+                            [1.0/16, 1.0/8, 1.0/16]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                // for(let i=0;i<outH;i++)
+                //     for(let k=0;k<outW;k++)
+                //         tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+           
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+        function hpfSharpImage(){//고주파 샤프닝 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [-1.0/9, -1.0/9, -1.0/9],
+                            [-1.0/9, 8.0/9, -1.0/9],
+                            [-1.0/9, -1.0/9, -1.0/9]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                            //고주파 샤프닝 100곱해줘야함
+                                S += 100.0*tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+                       
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+            function sadImage(){//이동과 차분 에지검출 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [0.0, -1.0, 0.0],
+                            [-1.0, 2.0, 0.0],
+                            [0.0, 0.0, 0.0]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+            /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+        
+        //절댓값계산 함수
+        function abs(su){
+            if(su>=0)return su;
+            else return -su;
+        }
+        function opImage(){//유사 연산자 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [0.0, -1.0, 0.0],
+                            [-1.0, 2.0, 0.0],
+                            [0.0, 0.0, 0.0]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let max = 0.0;//주변것을 곱한것중 제일 큰수
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                if(abs(tmpInImage[i+1][k+1]-tmpInImage[i+m][k+n])>=max)
+                                    max = abs(tmpInImage[i+1][k+1]-tmpInImage[i+m][k+n]);
+                        tmpOutImage[i][k]=max;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+                                   
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+        function robertsImage(){//로버츠 마스크
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [-1.0, 0.0, -1.0],
+                            [0.0, 2.0, 0.0],
+                            [0.0, 0.0, 0.0]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+                                               
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+        function sobelImage(){//소벨 마스크 수평/수직
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [0.0, -2.0, -2.0],
+                            [2.0, 0.0, -2.0],
+                            [2.0, 2.0, 0.0]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+                                                           
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+        function prewittImage(){//프리윗 마스크 수평/수직
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [0.0, -1.0, -2.0],
+                            [1.0, 0.0, -1.0],
+                            [2.0, 1.0, 0.0]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+                                                                       
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+        function laplacianImage(){//라플라시안 처리 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [0.0, 1.0, 0.0],
+                            [1.0, -4.0, 1.0],
+                            [0.0, 1.0, 0.0]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+2);
+                for(let i=0;i<inH+2;i++)
+                    tmpInImage[i]= new Array(inW+2);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+2;i++)
+                    for(let k=0;k<inW+2;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+1][k+1]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<3;m++)
+                            for(let n=0;n<3;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+                                                                                   
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+        function logImage(){//로그 처리 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [0.0,0.0,-1.0,0.0,0.0],
+                            [0.0,-1.0,-2.0,-1.0,0.0],
+                            [-1.0,-2.0,16.0,-2.0,-1.0],
+                            [0.0,-1.0,-2.0,-1.0,0.0],
+                            [0.0,0.0,-1.0,0.0,0.0]
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+4);
+                for(let i=0;i<inH+4;i++)
+                    tmpInImage[i]= new Array(inW+4);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+4;i++)
+                    for(let k=0;k<inW+4;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+2][k+2]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<5;m++)
+                            for(let n=0;n<5;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+                                                                                               
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+            function dogImage(){//도그 처리 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //(짱! 중요) --> 마스크를 선택
+                let mask = [
+                            [0.0,0.0,0.0,-1.0,-1.0,-1.0,0.0,0.0,0.0],
+                            [0.0,-2.0,-3.0,-3.0,-3.0,-3.0,-3.0,-2.0,0.0],
+                            [0.0,-3.0,-2.0,-1.0,-1.0,-1.0,-2.0,-3.0,0.0],
+                            [-1.0,-3.0,-1.0,9.0,9.0,9.0,-1.0,-3.0,-1.0],
+                            [-1.0,-3.0,-1.0,9.0,19.0,9.0,-1.0,-3.0,-1.0],
+                            [-1.0,-3.0,-1.0,9.0,9.0,9.0,-1.0,-3.0,-1.0],
+                            [0.0,-3.0,-2.0,-1.0,-1.0,-1.0,-2.0,-3.0,0.0],
+                            [0.0,-2.0,-3.0,-3.0,-3.0,-3.0,-3.0,-2.0,0.0],
+                            [0.0,0.0,0.0,-1.0,-1.0,-1.0,0.0,0.0,0.0]
+                            
+                        ];
+                //임시 입력 배열(입력배열 + 2)
+                let tmpInImage = new Array(inH+8);
+                for(let i=0;i<inH+8;i++)
+                    tmpInImage[i]= new Array(inW+8);
+                
+                //임시 출력 배열 (출력배열과 크기 동일)
+                let tmpOutImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        tmpOutImage[i] = new Array(outW);
+                //임시 입력 배열 초기화(127로, 평균값, 인접값*)
+                for(let i=0;i<inH+8;i++)
+                    for(let k=0;k<inW+8;k++)
+                        tmpInImage[i][k]=127.0;
+
+                //입력 이미지 => 임시 입력 이미지의 중간에 쏙~
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        tmpInImage[i+4][k+4]=inImage[i][k];
+                //영상처리 알고리즘 --> 회선 연산(=긁어가기)
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        //한점처리
+                        let S = 0.0;//9점을 곱해서 합한 결과
+                        for(let m=0;m<9;m++)
+                            for(let n=0;n<9;n++)
+                                S += tmpInImage[i+m][k+n]*mask[m][n];
+                        tmpOutImage[i][k]=S;
+                    }
+                }
+                //후처리 작업 (마스크의 합계가 0이면 127정도를 더해주기를 고려)
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++)
+                        tmpOutImage[i][k]+=127.0;
+                //임시 출력이미지 --> 원 출력이미지
+                for(let i=0;i<outH;i++)
+                    for(let k=0;k<outW;k++){
+                        if(tmpOutImage[i][k] > 255.0)
+                            outImage[i][k]=255;
+                        else if(tmpOutImage[i][k] < 0.0)
+                            outImage[i][k]=0;
+                        else
+                            outImage[i][k]=parseInt(tmpOutImage[i][k]);
+                    }
+                //***********************
+                displayImage();
+            }
+                                                                                                           
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+           function stretchImage(){
+                outH=inH;
+                outW=inW;
+
+                outImage = new Array(outH);
+                for(let i=0;i<outH;i++)
+                    outImage[i] = new Array(outW);
+                //공식 out= (in-LOW)/(HIGH-LOW)*255.0
+                let LOW = inImage[0][0],HIGH=inImage[0][0];
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++){
+                        if(LOW>inImage[i][k])
+                            LOW = inImage[i][k];
+                        if(HIGH<inImage[i][k])
+                            HIGH = inImage[i][k];
+                    }
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        let out = (inImage[i][k]-LOW)/(HIGH-LOW)*255.0;
+                        if(out<0.0)
+                            out =0;
+                        else if(out>255.0)
+                            out = 255;
+                        else
+                            out = parseInt(out);
+                        outImage[i][k] = out;
+                    }
+                }
+                displayImage();
+           } 
+                                                                                                                   
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+           function endInImage(){//엔드-인 탐색 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                for (let i = 0; i < outH; i++)
+                    outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //공식 out =(in-LOW)/(HIGH-LOW)*255.0
+                let LOW = inImage[0][0], HIGH=inImage[0][0];
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++){
+                        if(LOW>inImage[i][k])
+                            LOW = inImage[i][k];
+                        if(HIGH < inImage[i][k])
+                            HIGH = inImage[i][k];
+                    }
+                LOW+=50;
+                HIGH-=50;
+
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        let out = (inImage[i][k]-LOW)/(HIGH-LOW)*255.0;
+                        if(out <0.0)
+                            out =0;
+                        else if(out>255.0)
+                            out =255;
+                        else
+                            out = parseInt(out);
+                        outImage[i][k] = out;
+                    }
+                }
+                //***********************
+                displayImage();
+            }
+                                                                                                                    
+        /////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////
+
+            function equalizeImage(){//히스토그램 평활화 알고리즘
+                //(중요!) 출력이미지의 크기가 결정--> 알고리즘에 의존
+                outH=inH;
+                outW=inW;
+                //출력 영상의 2차원 메모리 할당
+                outImage = new Array(outH);
+                    for (let i = 0; i < outH; i++)
+                        outImage[i] = new Array(outW);
+                //***진짜 영상처리 알고리즘 ***
+                //1단계 : 히스토그램 생성
+                let histo = new Array(256);
+                //초기화
+                for(let i=0;i<256;i++)
+                    histo[i]=0;
+                //카운트
+                for(let i=0;i<inH;i++)
+                    for(let k=0;k<inW;k++)
+                        histo[inImage[i][k]]++;
+                
+                //2단계 : 누적히스토그램 생성
+                let sumHisto = new Array(256);
+                //초기화
+                for(let i=0;i<256;i++)
+                    sumHisto[i]=0;
+                //계산
+                let sumValue =0;
+                for(let i=0;i<256;i++){
+                    sumValue +=histo[i];
+                    sumHisto[i] = sumValue;
+                }
+
+                //3단계 : 정규화된 누적 히스토그램 생성
+                //공식: normal = sum*(1/(inH*inW))*255
+                let normalHisto = new Array(256);
+                //초기화
+                for(let i=0;i<256;i++)
+                    normalHisto[i]=0.0;
+                //계산
+                for(let i=0;i<256;i++){
+                    let normal = sumHisto[i]*(1.0/(inH*inW))*255.0;
+                    normalHisto[i]=normal;
+                }
+                for(let i=0;i<inH;i++){
+                    for(let k=0;k<inW;k++){
+                        outImage[i][k] = parseInt(normalHisto[inImage[i][k]]);
+                    }
+                }
+                //***********************
+                displayImage();
+            }
+            
+        </script>
+        <style>
+            .abc{
+                padding: 50px;
+            }
+        </style>
+    </head>
+    <body onload="init()" class = "abc">
+        <center>
+        <h1>영상처리 프로그램(Preview 1)</h1>
+        <table>
+        <form>
+        <tr>
+            <td><input type="file" id="inFile" onchange="openImage()"/></td>
+            <td><select name="pixel" onchange="selectAlgorithm(this.form.pixel)">
+            <ul>
+                <li><option value="0">*화소점 처리*</option>
+                <li><option value="101">동일 영상</option>
+                <li><option value="102">영상 반전</option>
+                <li><option value="103">영상 더하기</option>
+                <li><option value="104">영상 빼기</option>
+                <li><option value="105">영상 곱하기</option>
+                <li><option value="106">영상 나누기</option>
+                <li><option value="107">흑백127기준</option>
+                <li><option value="108">흑백평균기준</option>
+                <li><option value="109">흑백중앙값기준</option>
+                <li><option value="110">파라볼라 캡</option>
+                <li><option value="111">파라볼라 컵</option>
+                <li><option value="112">감마</option>
+            </ul>
+        </select>
+        <select name="geometry" onchange="selectAlgorithm(this.form.geometry)">
+            <ul>
+                <li><option value="0">*기하학 처리*</option>
+                <li><option value="201">상하 미러링</option>
+                <li><option value="202">좌우 미러링</option>
+                <li><option value="203">영상 이동</option>
+                <li><option value="204">영상 회전</option>
+                <li><option value="205">영상 회전 90도</option>
+                <li><option value="206">영상 축소</option>
+                <li><option value="207">영상 확대</option>
+                <li><option value="208">영상 확대(백워딩)</option>
+            </ul>  
+        </select>
+        <select name="area" onchange="selectAlgorithm(this.form.area)">
+            <ul>
+                <li><option value="0">*화소영역 처리*</option>
+                <li><option value="301">엠보싱</option>
+                <li><option value="302">블러링</option>
+                <li><option value="303">샤프닝</option>
+                <li><option value="304">가우시안</option>
+                <li><option value="305">고주파 샤프닝</option>
+                <li><option value="306">이동과 차분</option>
+                <li><option value="307">유사연산자</option>
+                <li><option value="308">로버츠마스크 수평/수직</option>
+                <li><option value="309">소벨마스크 수평/수직</option>
+                <li><option value="310">프리윗마스크 수평/수직</option>
+                <li><option value="311">라플라시안</option>
+                <li><option value="312">로그</option>
+                <li><option value="313">도그</option>
+            </ul> 
+        </select>
+        <select name="histo" onchange="selectAlgorithm(this.form.histo)">
+            <ul>
+                <li><option value="0">*히스토그램 처리*</option>
+                <li><option value="401">스트레칭</option>
+                <li><option value="402">엔드-인</option>
+                <li><option value="403">평활화</option>
+            </ul>
+        </select></td>
+        </form></tr>
+        
+        <tr><br></tr>
+        <tr><br></tr><tr><br></tr><tr><br></tr>
+        <tr>
+        <td><canvas  id="inCanvas"  style="background-color:rgb(253, 206, 119)"
+            width="550" height="550"></canvas></td>
+            
+        <td><canvas  id="outCanvas"  style="background-color:rgb(179, 160, 223)"
+            width="550" height="550"></canvas></td></tr>
+        </table>
+    </center>
+    </body>
+</html>
