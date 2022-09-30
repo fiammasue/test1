@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GrayScale Image Processing (Beta 1)</title>
+</head>
+<body>
+<form action="Color01_server.jsp" method="post" enctype="multipart/form-data">
+	<p>
+		<select name="algo">
+			<option value="">~~ Algorithm ~~</option>
+			<option value="101">동일영상</option>
+			<option value="102">반전영상</option>
+			<option value="103">밝게/어둡게</option>
+			<option value="104">영상 곱하기</option>
+			<option value="105">영상 나누기</option>
+			<option value="106">흑백 127</option>
+			<option value="107">흑백 평균</option>
+			<option value="108">파라볼라 컵</option>
+			<option value="109">파라볼라 캡</option>
+			<option value="110">감마</option>
+
+
+			<option value="">~~ Algorithm ~~</option>
+			<option value="201">상하미러링</option>
+			<option value="202">좌우미러링</option>
+			<option value="203">영상이동</option>
+			<option value="204">시계방향 회전</option>
+			<option value="205">반시계방향 회전</option>
+			<option value="207">영상 축소</option>
+			<option value="208">영상 확대</option>
+			<option value="209">영상 확대(백워딩)</option>
+
+
+			<option value="">~~ Algorithm ~~</option>
+			<option value="301">엠보싱</option>
+			<option value="302">블러링</option>
+			<option value="303">샤프닝</option>
+			<option value="304">가우시안</option>
+			<option value="305">고주파 샤프닝</option>
+			<option value="306">이동과 차분</option>
+			<option value="307">유사연산자</option>
+			<option value="308">로버츠</option>
+			<option value="309">소벨 </option>
+			<option value="310">프리윗</option>
+			<option value="311">라플라시안</option>
+			<option value="312">로그</option>
+			<option value="313">도그</option>
+
+
+			<option value="">~~ Algorithm ~~</option>
+			<option value="401">스트레칭</option>
+			<option value="402">엔드-인</option>
+			<option value="403">평활화</option>
+			
+			
+			<option value="501">채도변환</option>
+			<option value="502">그레이 스케일</option>
+			<option value="503">명도변환</option>
+			<option value="504">오렌지추출</option>
+		</select>
+		
+	<p>
+		Parameter1 : <input type="text" value="0" name="para1">
+	<p>
+		Parameter2 : <input type="text" value="0" name="para2">
+	<p> Upload File : <input type="file" name="filename">
+	<p>
+	<p>
+		<input type="submit" value="Processing!!">
+</form>
+</body>
+</html>
